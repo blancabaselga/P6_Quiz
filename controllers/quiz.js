@@ -153,3 +153,78 @@ exports.check = (req, res, next) => {
         answer
     });
 };
+
+// GET /quizzes/randomplay
+exports.randomplay = (req, res, next) => {
+
+
+   if(req.session.randomPlay == undefined ) {  // Array donde voy a almacenar los ids delas preguntas que ya he contestado 
+        req.session.randomPlay = [];
+    }
+
+    const Op = Sequelize.Op;
+
+    const condicion = {'id': {[Op.notIn]: req.session.randomPlay}};
+
+    models.quiz.count({where: condicion})
+    .then(count => {
+        if (count === 0) {
+            let score = req.session.randomPlay.length;
+            delete req.session.randomPlay;
+            res.render('quizzes/random_nomore', {
+            score : score
+            });
+        req.session.randomPlay = [];
+        } else {
+            return models.quiz.findAll({
+                where: condicion,
+                offset: Math.floor(Math.random() * count), 
+                limit: 1 
+            })
+            .then(quizzes => {
+                return quizzes[0];
+            });
+        
+        }
+    })
+    .then(quiz => {
+        res.render('quizzes/random_play', {  
+            quiz : quiz,
+            score :req.session.randomPlay.length
+        });
+    })
+    .catch(error => next(error));
+              
+}
+
+// GET /quizzes/:quizId/randomcheck
+exports.randomcheck = (req, res, next) => {
+
+
+    if(req.session.randomPlay == undefined ) {   
+        req.session.randomPlay = [];
+    }
+    const player_answer =  req.query.answer || "";
+    const quiz_Answer = req.quiz.answer;     
+    var score = req.session.randomPlay.length; 
+    var result = player_answer.toLowerCase().trim() === quiz_Answer.toLowerCase().trim();
+    
+
+    if(result){
+            req.session.randomPlay.push(req.quiz.id) // Añade elementos al final del array.
+            score = req.session.randomPlay.length;
+    }
+
+    res.render('quizzes/random_result', {   
+        score: score, 
+        answer: player_answer,
+        result: result
+    });
+
+};
+
+
+
+
+
+
